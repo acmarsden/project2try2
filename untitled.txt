@@ -1,2 +1,74 @@
 Pseudocode
 
+messenger.generateCertificate(username)
+    keypairObject = generateEG();
+    myPrivateKeyInit = keypairObject.sec
+    myPublicKeyInit = keypairObject.pub
+    certificate = {username, myPublicKeyInit}
+    
+    
+messenger.receiveCertificate(certificate, signature)
+    if verifyWithECDSA(certAuthorityPublicKey, certificate, signature)
+        theirPublicKeyInit = certificate.myPublicKey
+        theirName = certificate.username
+        userkeypair = {theirPublicKeyInit, theirName}
+    else
+        throw problem
+        
+        
+messenger.sendMessage(name, message)
+    theirCertificateKey = userkeypair.name
+    if no communication yet:
+        shared_key = computeDH(myCertificateKey, theirCertificateKey)
+        newKeypairObject = generateEG();
+        myPrivateKey = newKeypairObject.sec
+        myPublicKey = newKeypairObject.pub
+        DHkey =  computeDH(myPrivateKey, theirCertificateKey)
+        (root_key, chain_key) = HKDF(DHkey, outputlength, shared_key, string)
+        Nsent = 0
+    
+    %Do this in receiveMessage
+    %else if theirPublicKey is different:
+    %    DHkey =  computeDH(myPrivateKey, theirPublicKey)
+    %    (root_key, chain_key) = HKDF(DHkey, outputlength, root_key, string)
+    
+    message_key = HMACWithSHA256(chain_key, CONSTANTmk)
+    chain_key = HMACWithSHA256(chain_key, CONSTANTchain)
+    
+    %Confused about the above- trying to do what TA told me
+    % How to keep track of Nprev?
+    
+    Nsent += 1
+    governmentKeypairObject = generateEG()
+    govDHkey = computeDH(governmentKeypairObject.sec, government_publickey)
+    vGov = governmentKeypairObject.pub
+    cGov = encryptWithGCM(govDHkey, message_key)
+    
+    header = {myPublicKey, Nprev, Nsent, vGov, cGov}
+    ciphertext = encryptWithGCM(message_key, message, header)    
+    return [header, ciphertext]
+    
+    
+messenger.receiveMessage(name, [header, ciphertext])
+    if no communication yet:
+        theirCertificateKey = userkeypair.name
+        root_key =  computeDH(myCertificateKey, theirCertificateKey)
+        Nreceived = 0
+        
+    if theirPublicKey != header.myPublicKey
+        DHkey = computeDH(myPrivateKey, theirPublicKey)
+        (root_key, chain_key) = HKDF(DHkey, outputlength, root_key, string)
+        
+    message_key = HMACWithSHA256(chain_key, CONSTANTmk)
+    chain_key = HMACWithSHA256(chain_key, CONSTANTchain)
+       
+    Nreceived += 1
+    message = decryptWithGCM(message_key, ciphertext, header)
+    
+    
+        
+    
+    
+    
+    
+        

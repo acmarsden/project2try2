@@ -50,6 +50,13 @@ export default class MessengerClient {
    */
   generateCertificate(username) {
     throw("not implemented!");
+    /**
+    keypairObject = generateEG();
+    const certificate = {
+    name: username
+    key: keypairObject.pub
+    };
+    */
     const certificate = {};
     return certificate;
   }
