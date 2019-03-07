@@ -121,8 +121,9 @@ export default class MessengerClient {
       kdfOutput = HKDF(rootKey,512,DHsalt,"HKDF");
       this.conns[name].currentRootKey = hexStringSlice(kdfOutput,0,256);
       this.conns[name].currentSendKey = hexStringSlice(kdfOutput,256,512);
+      this.conns[name].sentMessage = true;
     }
-    // Now obtain a message key by building a KDF out of HMAC and increment send key for next time
+    // Now obtain a message key by building a KDF out of HMAC and increment send key for next time. This incriments the send chain.
     kdfOutput = HMACWithSHA512(this.conns[name].currentSendKey,"message key generation");
     this.conns[name].currentSendKey = hexStringSlice(kdfOutput,0,256);
     messageKey = hexStringSlice(kdfOutput,256,384);
@@ -173,25 +174,30 @@ export default class MessengerClient {
       kdfOutput = HKDF(rootKey,512,DHsalt,"HKDF");
       this.conns[name].currentRootKey = hexStringSlice(kdfOutput,0,256);
       this.conns[name].currentReceiveKey = hexStringSlice(kdfOutput,256,512);
+      this.conns[name].receivedMessage = true;
     }
+    // Checks if have to do a DH ratchet step
     if (!(this.conns[name].theirDHpk==header.DHpk)) {
-
-      // Generate an EG keypair
-      keypairObject = generateEG();
-      var DHsalt = computeDH(this.conns[name].myDHpk, header.DHpk);
+      var DHsalt = computeDH(this.conns[name].myDHsk, header.DHpk);
 
       // Update root key and receive key
       kdfOutput = HKDF(this.conns[name].currentRootKey,512,DHsalt,"HKDF");
       this.conns[name].currentRootKey = hexStringSlice(kdfOutput,0,256);
       this.conns[name].currentReceiveKey = hexStringSlice(kdfOutput,256,512);
+
+      // Generate an EG keypair
+      keypairObject = generateEG();
+      this.conns[name].theirDHpk = header.DHpk; 
+      this.conns[name].myDHsk = keypairObject.sec;
+      this.conns[name].myDHpk = keypairObject.pub;
     }
 
     // Now obtain a message key by building a KDF out of HMAC 
     kdfOutput = HMACWithSHA512(this.conns[name].currentReceiveKey,"message key generation");
     this.conns[name].currentReceiveKey = hexStringSlice(kdfOutput,0,256);
-    messageKey = hexStringSlice(kdfOutput,256,384);
+    messageKey = hexStringSlice(kdfOutput,256,384); // Note that the message keys aren't stored
 
-    // decrypts the message
+    // decrypts the message, decryptWithGCM throws error automatically if encryption fails
     plaintext = decryptWithGCM(messageKey, ciphertext, JSON.stringify(header));
     return plaintext;
 
